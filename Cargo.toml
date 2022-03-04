@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 windows-service = "0.4.0"
+anyhow = "1.0"

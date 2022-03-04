@@ -1,20 +1,40 @@
 extern crate windows_service;
 
+use std::fs::File;
+use std::io::prelude::*;
 use std::ffi::OsString;
 use std::time::Duration;
-use windows_service::service_dispatcher;
-use windows_service::define_windows_service;
-use windows_service::service::{
-    ServiceControl,
-    ServiceStatus,
-    ServiceControlAccept,
-    ServiceExitCode,
-    ServiceState, 
-    ServiceType,
+
+use anyhow::{
+    Result,
+    Error,
 };
-use windows_service::service_control_handler::{self, ServiceControlHandlerResult};
+
+use windows_service::{
+    define_windows_service,
+    service_dispatcher,
+    service::{
+        ServiceControl,
+        ServiceStatus,
+        ServiceControlAccept,
+        ServiceExitCode,
+        ServiceState, 
+        ServiceType,
+    },
+    service_control_handler::{
+        self, 
+        ServiceControlHandlerResult
+    },
+};
 
 define_windows_service!(ffi_service_main, service_main);
+
+const PATH: &str = "C:/Users/mremond/Documents/DevProjects/Rust/rust_keylogger/foo.txt";
+
+fn main() -> Result<(), windows_service::Error> {
+    service_dispatcher::start("totally_spies", ffi_service_main)?;
+    Ok(())
+}
 
 fn service_main(arguments: Vec<OsString>) {
     if let Err(_e) = run_service(arguments) {
@@ -22,10 +42,14 @@ fn service_main(arguments: Vec<OsString>) {
     }
 }
 
-fn run_service(_arguments: Vec<OsString>) -> Result<(), windows_service::Error> {
+fn run_service(_arguments: Vec<OsString>) -> Result<(), Error> {
     let event_handler = move |control_event| -> ServiceControlHandlerResult {
         match control_event {
-            ServiceControl::Stop | ServiceControl::Interrogate => ServiceControlHandlerResult::NoError,
+            ServiceControl::Stop => {
+                // Handle service stop and give control back to the system
+                ServiceControlHandlerResult::Other(0)
+            },
+            ServiceControl::Interrogate => ServiceControlHandlerResult::NoError,
             _ => ServiceControlHandlerResult::NotImplemented,
         }
     };
@@ -57,10 +81,9 @@ fn run_service(_arguments: Vec<OsString>) -> Result<(), windows_service::Error> 
     // Tell the system that the service is running now
     status_handle.set_service_status(next_status)?;
 
-    Ok(())
-}
+    let mut file = File::create(PATH)?;
 
-fn main() -> Result<(), windows_service::Error> {
-    service_dispatcher::start("totally_spies", ffi_service_main)?;
+    file.write_all(b"Hello world!")?;
+
     Ok(())
 }
