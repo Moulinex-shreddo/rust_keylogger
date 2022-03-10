@@ -1,5 +1,3 @@
-extern crate windows_service;
-
 use std::fs::File;
 use std::io::prelude::*;
 use std::ffi::OsString;
@@ -8,6 +6,7 @@ use std::sync::mpsc;
 
 use device_query::{
     DeviceQuery,
+    DeviceEvents,
     DeviceState,
     Keycode,
 };
@@ -88,22 +87,28 @@ fn run_service(_arguments: Vec<OsString>) -> Result<(), Error> {
         // Process ID
         process_id: None,
     };
-
     // Tell the system that the service is running now
     status_handle.set_service_status(next_status)?;
 
     let mut file = File::create(PATH)?;
 
     file.write_all(b"Hello world!")?;
+    write!(file, "Hello world2!")?;
 
     let device_state = DeviceState::new();
+    let _guard = device_state.on_key_down(|key| {
+
+        write!(file, "test");
+
+        match write!(file, "Keyboard key down: {:#?}", key) {
+            _ => (),
+        };
+        match write!(file, "Hello world2!") {
+            _ => (),
+        };
+     });
 
     loop { // Infinite main loop
-        let keys: Vec<Keycode> = device_state.get_keys();
-        for key in keys.iter() {
-            file.write_all(key.to_string().as_bytes())?;
-            file.write_all(b"Hello world!")?;
-        }
 
         match shutdown_rx.recv_timeout(Duration::from_micros(1)) {
             Ok(_) | Err(mpsc::RecvTimeoutError::Disconnected) => break,
